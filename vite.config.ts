@@ -10,14 +10,14 @@ export default defineConfig({
         lib: {
             entry: path.resolve(__dirname, "src/altal-heatpump-card.ts"),
             name: "AltalHeatpumpCard",
-            fileName: () => "altal-heatpump-card.js",
+            fileName: () => "altal_heater_card.js",
             formats: ["es"],
         },
         rollupOptions: {
             output: {
                 dir: "dist",
                 format: "es",
-                entryFileNames: "altal-heatpump-card.js",
+                entryFileNames: "altal_heater_card.js",
             },
         },
     },
