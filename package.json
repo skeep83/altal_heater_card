@@ -1,0 +1,15 @@
+{
+  "name": "altal-heatpump-card",
+  "version": "1.0.0",
+  "description": "Neumorphic Home Assistant card for Altal heat pump",
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite build --watch"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3",
+    "vite": "^7.3.1"
+  },
+  "license": "MIT"
+}
