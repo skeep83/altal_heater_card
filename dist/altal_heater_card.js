@@ -646,8 +646,8 @@ class S extends HTMLElement {
       .m-ico.hot { color: var(--heat); }
       .m-ico.ok { color: var(--good); }
 
-      .m-txt {}
-      .m-val { font-size: 20px; font-weight: 600; color: var(--txt); line-height: 1.2; }
+      .m-txt { min-width: 0; }
+      .m-val { font-size: clamp(15px, 4.5cqw, 20px); font-weight: 600; color: var(--txt); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
       .m-val.hot { color: var(--heat); }
       .m-lbl { font-size: 12px; font-weight: 500; color: var(--txt2); margin-top: 2px; }
 
@@ -723,16 +723,16 @@ class S extends HTMLElement {
 
       /* ─── Mode row ─── */
       .modes {
-        display: flex; gap: 12px; justify-content: center;
+        display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
         animation: pop 0.4s 0.4s both;
       }
       .mbtn {
-        padding: 12px 22px; border-radius: 16px; border: none;
+        padding: 12px 16px; border-radius: 16px; border: none;
         background: var(--bg); box-shadow: var(--raised-s);
         cursor: pointer; font-family: inherit;
         font-size: 13px; font-weight: 600;
         text-transform: uppercase; letter-spacing: 0.5px;
-        color: var(--txt2); display: flex; align-items: center; gap: 8px;
+        color: var(--txt2); display: flex; align-items: center; justify-content: center; gap: 8px;
         transition: all 0.2s; -webkit-tap-highlight-color: transparent;
       }
       .mbtn:hover { transform: translateY(-2px); }
@@ -871,7 +871,7 @@ class S extends HTMLElement {
             <div class="metric" id="m_heat" style="cursor: pointer" aria-label="График статуса нагрева">
               <div class="m-ico ${r ? "hot" : ""}">${this._ico.flame}</div>
               <div class="m-txt">
-                <div class="m-val ${r ? "hot" : ""}">${r ? "Активен" : "Нет"}</div>
+                <div class="m-val ${r ? "hot" : ""}">${r ? "Вкл" : "Нет"}</div>
                 <div class="m-lbl">Нагрев</div>
               </div>
             </div>
