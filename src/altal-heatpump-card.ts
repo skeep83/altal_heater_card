@@ -253,33 +253,32 @@ class AltalHeatpumpCard extends HTMLElement {
 
   private _css(): string {
     return `
-      @import url('https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700&display=swap');
+      @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;500;600;700;800&display=swap');
 
       :host {
-        --bg: var(--card-background-color, #e3e6ec);
-        --bg2: var(--secondary-background-color, #d1d5db);
-        --txt: var(--primary-text-color, #3b3f5c);
-        --txt2: var(--secondary-text-color, #8b8fa3);
-        --accent: var(--primary-color, #e6642f);
+        --bg: var(--aerogel-base, var(--card-background-color, #e3e6ec));
+        --bg2: var(--aerogel-base-alt, var(--secondary-background-color, #d1d5db));
+        --txt: var(--aerogel-text, var(--primary-text-color, #3b3f5c));
+        --txt2: var(--aerogel-text-secondary, var(--secondary-text-color, #8b8fa3));
+        --accent: var(--aerogel-accent, var(--primary-color, #6CB4EE));
 
-        --sh-d: rgba(166,180,200,0.7);
-        --sh-l: rgba(255,255,255,0.8);
-        --raised: 6px 6px 14px var(--sh-d), -6px -6px 14px var(--sh-l);
-        --raised-s: 3px 3px 8px var(--sh-d), -3px -3px 8px var(--sh-l);
-        --inset: inset 3px 3px 7px var(--sh-d), inset -3px -3px 7px var(--sh-l);
-        --inset-s: inset 2px 2px 4px var(--sh-d), inset -2px -2px 4px var(--sh-l);
-        --btn: 4px 4px 10px var(--sh-d), -4px -4px 10px var(--sh-l);
-        --btn-p: inset 3px 3px 7px var(--sh-d), inset -3px -3px 7px var(--sh-l);
+        --raised: var(--aerogel-convex-lg, 6px 6px 14px rgba(166,180,200,0.7), -6px -6px 14px rgba(255,255,255,0.8));
+        --raised-s: var(--aerogel-convex-sm, 3px 3px 8px rgba(166,180,200,0.7), -3px -3px 8px rgba(255,255,255,0.8));
+        --inset: var(--aerogel-concave-lg, inset 3px 3px 7px rgba(166,180,200,0.7), inset -3px -3px 7px rgba(255,255,255,0.8));
+        --inset-s: var(--aerogel-concave-sm, inset 2px 2px 4px rgba(166,180,200,0.7), inset -2px -2px 4px rgba(255,255,255,0.8));
+        --btn: var(--aerogel-flat, 4px 4px 10px rgba(166,180,200,0.7), -4px -4px 10px rgba(255,255,255,0.8));
+        --btn-p: var(--aerogel-active, inset 3px 3px 7px rgba(166,180,200,0.7), inset -3px -3px 7px rgba(255,255,255,0.8));
 
-        --heat: #e6642f;
-        --heat-g: rgba(230,100,47,0.15);
-        --idle: #93a5be;
-        --good: #05a677;
-        --warn: #e5a100;
-        --info: #3b82f6;
+        --heat: var(--aerogel-warning, #f07b3f);
+        --heat-g: rgba(240, 123, 63, 0.15);
+        --idle: var(--aerogel-text-secondary, #93a5be);
+        --good: var(--success-color, #05a677);
+        --warn: var(--aerogel-warning, #e5a100);
+        --info: var(--aerogel-accent, #3b82f6);
 
         display: block; width: 100%; box-sizing: border-box;
         position: relative; z-index: 0; isolation: isolate;
+        font-family: var(--aerogel-font, 'Nunito', sans-serif);
       }
 
       * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -367,31 +366,31 @@ class AltalHeatpumpCard extends HTMLElement {
       /* ─── Main dial area ─── */
       .dial-area {
         display: flex; align-items: center; justify-content: center;
-        gap: 20px; margin-bottom: 8px;
+        gap: 4vmin; margin-bottom: 12px;
       }
 
       /* Side +/- */
       .side-btn {
-        width: 52px; height: 52px; border-radius: 16px; border: none;
+        width: clamp(44px, 12vw, 56px); aspect-ratio: 1; border-radius: 16px; border: none;
         background: var(--bg); box-shadow: var(--btn);
         cursor: pointer; display: flex; align-items: center; justify-content: center;
         color: var(--txt); flex-shrink: 0;
         transition: all 0.2s; -webkit-tap-highlight-color: transparent;
       }
-      .side-btn:hover { transform: scale(1.06); box-shadow: 5px 5px 12px var(--sh-d), -5px -5px 12px var(--sh-l); }
+      .side-btn:hover { transform: scale(1.06); box-shadow: var(--raised); }
       .side-btn:active { box-shadow: var(--btn-p); transform: scale(0.94); }
-      .side-btn svg { width: 24px; height: 24px; }
+      .side-btn svg { width: clamp(20px, 6vw, 24px); }
 
       /* Circle */
       .circle {
-        width: 180px; height: 180px;
+        width: clamp(140px, 45vw, 200px); aspect-ratio: 1;
         border-radius: 50%; flex-shrink: 0;
         background: var(--bg); box-shadow: var(--raised);
         display: flex; align-items: center; justify-content: center;
         position: relative;
       }
       .circle-in {
-        width: 152px; height: 152px;
+        width: 85%; aspect-ratio: 1;
         border-radius: 50%;
         background: var(--bg); box-shadow: var(--inset);
         display: flex; flex-direction: column;
@@ -423,24 +422,24 @@ class AltalHeatpumpCard extends HTMLElement {
 
       /* Temp display */
       .c-lbl {
-        font-size: 11px; font-weight: 500; text-transform: uppercase;
+        font-size: clamp(9px, 2.5vw, 11px); font-weight: 500; text-transform: uppercase;
         letter-spacing: 1.5px; color: var(--txt2);
         position: relative; z-index: 3;
       }
       .c-val {
-        font-size: 46px; font-weight: 300; line-height: 1;
+        font-size: clamp(32px, 10vw, 46px); font-weight: 300; line-height: 1;
         color: var(--txt); margin-top: 2px;
         position: relative; z-index: 3; transition: color 0.3s;
       }
-      .c-val sup { font-size: 20px; font-weight: 400; }
+      .c-val sup { font-size: clamp(16px, 4.5vw, 20px); font-weight: 400; }
       .c-val.hot { color: var(--heat); }
 
       .c-trend {
         display: flex; align-items: center; gap: 4px;
-        margin-top: 6px; font-size: 11px; font-weight: 500;
+        margin-top: 6px; font-size: clamp(9px, 2.5vw, 11px); font-weight: 500;
         color: var(--txt2); position: relative; z-index: 3;
       }
-      .c-trend svg { width: 14px; height: 14px; }
+      .c-trend svg { width: clamp(12px, 3.5vw, 14px); aspect-ratio: 1; }
       .c-trend.up { color: var(--heat); }
       .c-trend.down { color: var(--info); }
       .c-trend.flat { color: var(--good); }
@@ -450,25 +449,26 @@ class AltalHeatpumpCard extends HTMLElement {
         text-align: center; margin-bottom: 22px;
       }
       .sp-lbl {
-        font-size: 11px; font-weight: 500; text-transform: uppercase;
+        font-size: clamp(9px, 2.5vw, 11px); font-weight: 500; text-transform: uppercase;
         letter-spacing: 1.5px; color: var(--txt2);
       }
       .sp-val {
-        font-size: 30px; font-weight: 600; color: var(--txt);
+        font-size: clamp(24px, 7vw, 30px); font-weight: 600; color: var(--txt);
         line-height: 1.3; transition: color 0.3s;
       }
       .sp-val.hot { color: var(--heat); }
 
       /* ─── Sensor metrics ─── */
       .metrics {
-        display: grid; grid-template-columns: 1fr 1fr;
+        display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
         gap: 14px; margin-bottom: 18px;
+        width: 100%;
       }
       .metric {
         background: var(--bg);
         box-shadow: var(--raised-s);
-        border-radius: 18px; padding: 16px 18px;
-        display: flex; align-items: center; gap: 14px;
+        border-radius: 18px; padding: clamp(12px, 3vw, 16px);
+        display: flex; align-items: center; gap: clamp(8px, 2.5vw, 12px);
         transition: all 0.25s;
         animation: pop 0.4s cubic-bezier(0.34,1.56,0.64,1) both;
       }
@@ -477,7 +477,7 @@ class AltalHeatpumpCard extends HTMLElement {
       .metric:nth-child(3){animation-delay:.2s}
       .metric:nth-child(4){animation-delay:.25s}
       @keyframes pop { 0%{opacity:0;transform:scale(.85)} 100%{opacity:1;transform:none} }
-      .metric:hover { transform: translateY(-2px); box-shadow: 5px 5px 14px var(--sh-d), -5px -5px 14px var(--sh-l); }
+      .metric:hover { transform: translateY(-2px); box-shadow: var(--raised); }
       .metric:active { box-shadow: var(--inset-s); transform: none; }
 
       .m-ico {
@@ -592,10 +592,20 @@ class AltalHeatpumpCard extends HTMLElement {
       return;
     }
 
-    const curT = this._v(H, C.current_temp_entity);
-    const tgtT = this._v(H, C.target_temp_entity);
-    const dT = this._v(H, C.delta_t_entity);
-    const isH = H.states[C.heating_entity]?.state === 'on';
+    const curT = this._v(H, C.current_temp_entity) ?? (cl.attributes.current_temperature !== undefined ? parseFloat(cl.attributes.current_temperature) : null);
+    const tgtT = this._v(H, C.target_temp_entity) ?? parseFloat(cl.attributes.temperature);
+
+    // Optional entities graceful fallback
+    const dT = C.delta_t_entity ? this._v(H, C.delta_t_entity) : null;
+
+    // Determine heating state (from helper entity OR fallback to native hvac_action)
+    let isH = false;
+    if (C.heating_entity && H.states[C.heating_entity]) {
+      isH = H.states[C.heating_entity].state === 'on';
+    } else {
+      isH = cl.attributes.hvac_action === 'heating' || (cl.state === 'heat' && curT !== null && curT < tgtT);
+    }
+
     const hvac = cl.state;
     const isOff = hvac === 'off';
     const cTgt = this._pendingTarget ?? cl.attributes.temperature;
@@ -631,9 +641,9 @@ class AltalHeatpumpCard extends HTMLElement {
           <div class="top">
             <div class="top-left">
               ${showImg && C.image
-        ? `<div class="pump-thumb"><img src="${C.image}" alt="Altal"/></div>`
+        ? `<div class="pump-thumb"><img src="${C.image}" alt="Heat Pump"/></div>`
         : showImg
-          ? `<div class="pump-thumb empty">ALTAL</div>`
+          ? `<div class="pump-thumb empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" style="width: 40px; color: var(--txt2);"><path d="M4 14v-4a2 2 0 012-2h12a2 2 0 012 2v4M4 14a2 2 0 002 2h12a2 2 0 002-2M4 14v4a2 2 0 002 2h12a2 2 0 002-2v-4M8 11v6M16 11v6"/></svg></div>`
           : ''}
               <div class="top-info">
                 <div class="name">${name}</div>
@@ -701,6 +711,7 @@ class AltalHeatpumpCard extends HTMLElement {
                 <div class="m-lbl">Уставка</div>
               </div>
             </div>
+            ${C.delta_t_entity ? `
             <div class="metric">
               <div class="m-ico">${this._ico.delta}</div>
               <div class="m-txt">
@@ -709,6 +720,7 @@ class AltalHeatpumpCard extends HTMLElement {
                 <div class="dt-bar"><div class="dt-fill ${dtCls}" style="width:${dtPct}%"></div></div>
               </div>
             </div>
+            ` : ''}
             <div class="metric">
               <div class="m-ico ${isH ? 'hot' : ''}">${this._ico.flame}</div>
               <div class="m-txt">

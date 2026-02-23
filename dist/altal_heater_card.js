@@ -154,17 +154,17 @@ class z extends HTMLElement {
       "heating_entity",
       "image"
     ].forEach((e) => {
-      this._root.getElementById(e)?.addEventListener("change", (s) => {
-        const a = s.target.value;
-        this._config = { ...this._config, [e]: a || void 0 }, this._dispatch();
+      this._root.getElementById(e)?.addEventListener("change", (a) => {
+        const s = a.target.value;
+        this._config = { ...this._config, [e]: s || void 0 }, this._dispatch();
       });
     }), this._root.getElementById("quick_presets")?.addEventListener("change", (e) => {
-      const i = e.target.value.split(",").map((s) => parseFloat(s.trim())).filter((s) => !isNaN(s));
+      const i = e.target.value.split(",").map((a) => parseFloat(a.trim())).filter((a) => !isNaN(a));
       this._config = { ...this._config, quick_presets: i.length ? i : void 0 }, this._dispatch();
     }), this._root.querySelectorAll(".toggle").forEach((e) => {
       e.addEventListener("click", () => {
-        const i = e.dataset.field, s = this._config[i], a = s === !1 ? !0 : s === !0 || s === void 0 ? !1 : !s;
-        this._config[i] = i === "compact" ? !this._config.compact : a, this._dispatch(), this._render();
+        const i = e.dataset.field, a = this._config[i], s = a === !1 ? !0 : a === !0 || a === void 0 ? !1 : !a;
+        this._config[i] = i === "compact" ? !this._config.compact : s, this._dispatch(), this._render();
       });
     });
   }
@@ -230,12 +230,12 @@ class E extends HTMLElement {
     this._hass = t;
     const e = this._v(t, this._config.current_temp_entity);
     if (e !== null) {
-      const s = Date.now();
-      this._history.push({ t: e, ts: s }), this._history = this._history.filter((a) => a.ts > s - 30 * 6e4);
+      const a = Date.now();
+      this._history.push({ t: e, ts: a }), this._history = this._history.filter((s) => s.ts > a - 30 * 6e4);
     }
     if (this._pendingTarget !== null) {
-      const s = t.states[this._config.climate_entity]?.attributes?.temperature;
-      s != null && Math.abs(parseFloat(s) - this._pendingTarget) < 0.01 && (this._pendingTarget = null);
+      const a = t.states[this._config.climate_entity]?.attributes?.temperature;
+      a != null && Math.abs(parseFloat(a) - this._pendingTarget) < 0.01 && (this._pendingTarget = null);
     }
     (!o || o.states[this._config.climate_entity] !== t.states[this._config.climate_entity] || o.states[this._config.current_temp_entity] !== t.states[this._config.current_temp_entity] || o.states[this._config.target_temp_entity] !== t.states[this._config.target_temp_entity] || o.states[this._config.delta_t_entity] !== t.states[this._config.delta_t_entity] || o.states[this._config.heating_entity] !== t.states[this._config.heating_entity]) && this._render();
   }
@@ -269,16 +269,16 @@ class E extends HTMLElement {
    * - ΔT > 7°C → too high (restricted flow, dirty filter, air in system)
    */
   _dtDiag(t, o, e, i) {
-    const s = { icon: "", title: "", text: "", cls: "hide" };
-    if (!i) return s;
+    const a = { icon: "", title: "", text: "", cls: "hide" };
+    if (!i) return a;
     if (t === null || t === 0) return { icon: "⏳", title: "Ожидание данных ΔT", text: "Данные ещё не получены", cls: "neutral" };
-    const a = (e ?? 0) - (o ?? 0);
-    return a <= 0.7 && a >= -0.5 ? {
+    const s = (e ?? 0) - (o ?? 0);
+    return s <= 0.7 && s >= -0.5 ? {
       icon: "🟢",
       title: "Режим поддержания",
       text: `Температура близка к уставке. ΔT ${t.toFixed(1)}°C — нормально при модуляции`,
       cls: "good"
-    } : a >= 1.5 && (t < 2 || t > 10) ? {
+    } : s >= 1.5 && (t < 2 || t > 10) ? {
       icon: "🧊",
       title: "Переходный режим",
       text: `Нагрев: ${o?.toFixed(1)} → ${e?.toFixed(1)}°C. ΔT=${t.toFixed(1)}°C — ещё не стабилизировался`,
@@ -304,13 +304,13 @@ class E extends HTMLElement {
   _adjust(t) {
     const o = this._config.step || 0.5, e = this._hass.states[this._config.climate_entity], i = this._pendingTarget ?? parseFloat(e?.attributes?.temperature);
     if (isNaN(i)) return;
-    const s = Math.round((i + t * o) * 10) / 10, a = Math.max(e?.attributes?.min_temp ?? 5, Math.min(e?.attributes?.max_temp ?? 35, s));
-    this._pendingTarget = a;
+    const a = Math.round((i + t * o) * 10) / 10, s = Math.max(e?.attributes?.min_temp ?? 5, Math.min(e?.attributes?.max_temp ?? 35, a));
+    this._pendingTarget = s;
     const r = this._root.querySelector(".sp-val");
-    r && (r.textContent = a.toFixed(1) + "°"), this._svcTimer && clearTimeout(this._svcTimer), this._svcTimer = setTimeout(() => {
+    r && (r.textContent = s.toFixed(1) + "°"), this._svcTimer && clearTimeout(this._svcTimer), this._svcTimer = setTimeout(() => {
       this._hass.callService("climate", "set_temperature", {
         entity_id: this._config.climate_entity,
-        temperature: a
+        temperature: s
       });
     }, 600);
   }
@@ -333,33 +333,32 @@ class E extends HTMLElement {
   /* ══════════════════ CSS ══════════════════ */
   _css() {
     return `
-      @import url('https://fonts.googleapis.com/css2?family=Rubik:wght@300;400;500;600;700&display=swap');
+      @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;500;600;700;800&display=swap');
 
       :host {
-        --bg: var(--card-background-color, #e3e6ec);
-        --bg2: var(--secondary-background-color, #d1d5db);
-        --txt: var(--primary-text-color, #3b3f5c);
-        --txt2: var(--secondary-text-color, #8b8fa3);
-        --accent: var(--primary-color, #e6642f);
+        --bg: var(--aerogel-base, var(--card-background-color, #e3e6ec));
+        --bg2: var(--aerogel-base-alt, var(--secondary-background-color, #d1d5db));
+        --txt: var(--aerogel-text, var(--primary-text-color, #3b3f5c));
+        --txt2: var(--aerogel-text-secondary, var(--secondary-text-color, #8b8fa3));
+        --accent: var(--aerogel-accent, var(--primary-color, #6CB4EE));
 
-        --sh-d: rgba(166,180,200,0.7);
-        --sh-l: rgba(255,255,255,0.8);
-        --raised: 6px 6px 14px var(--sh-d), -6px -6px 14px var(--sh-l);
-        --raised-s: 3px 3px 8px var(--sh-d), -3px -3px 8px var(--sh-l);
-        --inset: inset 3px 3px 7px var(--sh-d), inset -3px -3px 7px var(--sh-l);
-        --inset-s: inset 2px 2px 4px var(--sh-d), inset -2px -2px 4px var(--sh-l);
-        --btn: 4px 4px 10px var(--sh-d), -4px -4px 10px var(--sh-l);
-        --btn-p: inset 3px 3px 7px var(--sh-d), inset -3px -3px 7px var(--sh-l);
+        --raised: var(--aerogel-convex-lg, 6px 6px 14px rgba(166,180,200,0.7), -6px -6px 14px rgba(255,255,255,0.8));
+        --raised-s: var(--aerogel-convex-sm, 3px 3px 8px rgba(166,180,200,0.7), -3px -3px 8px rgba(255,255,255,0.8));
+        --inset: var(--aerogel-concave-lg, inset 3px 3px 7px rgba(166,180,200,0.7), inset -3px -3px 7px rgba(255,255,255,0.8));
+        --inset-s: var(--aerogel-concave-sm, inset 2px 2px 4px rgba(166,180,200,0.7), inset -2px -2px 4px rgba(255,255,255,0.8));
+        --btn: var(--aerogel-flat, 4px 4px 10px rgba(166,180,200,0.7), -4px -4px 10px rgba(255,255,255,0.8));
+        --btn-p: var(--aerogel-active, inset 3px 3px 7px rgba(166,180,200,0.7), inset -3px -3px 7px rgba(255,255,255,0.8));
 
-        --heat: #e6642f;
-        --heat-g: rgba(230,100,47,0.15);
-        --idle: #93a5be;
-        --good: #05a677;
-        --warn: #e5a100;
-        --info: #3b82f6;
+        --heat: var(--aerogel-warning, #f07b3f);
+        --heat-g: rgba(240, 123, 63, 0.15);
+        --idle: var(--aerogel-text-secondary, #93a5be);
+        --good: var(--success-color, #05a677);
+        --warn: var(--aerogel-warning, #e5a100);
+        --info: var(--aerogel-accent, #3b82f6);
 
         display: block; width: 100%; box-sizing: border-box;
         position: relative; z-index: 0; isolation: isolate;
+        font-family: var(--aerogel-font, 'Nunito', sans-serif);
       }
 
       * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -665,10 +664,10 @@ class E extends HTMLElement {
       this._root.innerHTML = `<style>${this._css()}</style><div class="err"><h3>Entity не найден</h3><p>${t.climate_entity}</p></div>`;
       return;
     }
-    const i = this._v(o, t.current_temp_entity), s = this._v(o, t.target_temp_entity), a = this._v(o, t.delta_t_entity), r = o.states[t.heating_entity]?.state === "on", c = e.state, h = c === "off", p = this._pendingTarget ?? e.attributes.temperature, w = e.attributes.hvac_modes || ["heat", "off"], y = t.name || e.attributes.friendly_name || "Altal Heat Pump", k = t.quick_presets || [19, 20, 22, 24], l = this._trend(), x = l === "up" ? this._ico.up : l === "down" ? this._ico.down : this._ico.stable, u = l === "up" ? "Растёт" : l === "down" ? "Падает" : "Стабильно", d = this._dtDiag(a, i, s, r);
-    let g = "off", v = "Выкл";
-    r ? (g = "heating", v = "Нагрев") : h || (g = "idle", v = "Ожидание");
-    const m = { heat: "Обогрев", off: "Выкл", cool: "Охлажд.", auto: "Авто" }, $ = { heat: this._ico.heat, off: this._ico.off }, T = a != null ? Math.min(100, a / 12 * 100) : 0, C = a != null ? a >= 4 && a <= 7 ? "ok" : a < 3 || a > 9 ? "bad" : "mid" : "ok", f = t.show_image !== !1, b = p != null ? parseFloat(p).toFixed(1) : "—";
+    const i = this._v(o, t.current_temp_entity), a = this._v(o, t.target_temp_entity), s = this._v(o, t.delta_t_entity), r = o.states[t.heating_entity]?.state === "on", d = e.state, g = d === "off", p = this._pendingTarget ?? e.attributes.temperature, w = e.attributes.hvac_modes || ["heat", "off"], y = t.name || e.attributes.friendly_name || "Altal Heat Pump", k = t.quick_presets || [19, 20, 22, 24], l = this._trend(), x = l === "up" ? this._ico.up : l === "down" ? this._ico.down : this._ico.stable, u = l === "up" ? "Растёт" : l === "down" ? "Падает" : "Стабильно", c = this._dtDiag(s, i, a, r);
+    let h = "off", v = "Выкл";
+    r ? (h = "heating", v = "Нагрев") : g || (h = "idle", v = "Ожидание");
+    const b = { heat: "Обогрев", off: "Выкл", cool: "Охлажд.", auto: "Авто" }, $ = { heat: this._ico.heat, off: this._ico.off }, T = s != null ? Math.min(100, s / 12 * 100) : 0, C = s != null ? s >= 4 && s <= 7 ? "ok" : s < 3 || s > 9 ? "bad" : "mid" : "ok", m = t.show_image !== !1, f = p != null ? parseFloat(p).toFixed(1) : "—";
     this._root.innerHTML = `
       <style>${this._css()}</style>
       <ha-card>
@@ -677,15 +676,15 @@ class E extends HTMLElement {
           <!-- TOP -->
           <div class="top">
             <div class="top-left">
-              ${f && t.image ? `<div class="pump-thumb"><img src="${t.image}" alt="Altal"/></div>` : f ? '<div class="pump-thumb empty">ALTAL</div>' : ""}
+              ${m && t.image ? `<div class="pump-thumb"><img src="${t.image}" alt="Altal"/></div>` : m ? '<div class="pump-thumb empty">ALTAL</div>' : ""}
               <div class="top-info">
                 <div class="name">${y}</div>
-                <div class="status">Тепловой насос · ${m[c] || c}</div>
+                <div class="status">Тепловой насос · ${b[d] || d}</div>
               </div>
             </div>
             <div class="top-right">
-              <div class="badge ${g}"><span class="dot"></span>${v}</div>
-              <button class="pwr ${h ? "" : "on"}" id="pwr">${this._ico.power}</button>
+              <div class="badge ${h}"><span class="dot"></span>${v}</div>
+              <button class="pwr ${g ? "" : "on"}" id="pwr">${this._ico.power}</button>
             </div>
           </div>
 
@@ -708,7 +707,7 @@ class E extends HTMLElement {
           <!-- SETPOINT -->
           <div class="setpoint">
             <div class="sp-lbl">Уставка</div>
-            <div class="sp-val ${r ? "hot" : ""}">${b}°</div>
+            <div class="sp-val ${r ? "hot" : ""}">${f}°</div>
           </div>
           ` : `
           <div class="dial-area">
@@ -724,7 +723,7 @@ class E extends HTMLElement {
           </div>
           <div class="setpoint">
             <div class="sp-lbl">Уставка</div>
-            <div class="sp-val ${r ? "hot" : ""}">${b}°</div>
+            <div class="sp-val ${r ? "hot" : ""}">${f}°</div>
           </div>
           `}
 
@@ -740,14 +739,14 @@ class E extends HTMLElement {
             <div class="metric">
               <div class="m-ico">${this._ico.target}</div>
               <div class="m-txt">
-                <div class="m-val">${s !== null ? s.toFixed(1) : "—"}°C</div>
+                <div class="m-val">${a !== null ? a.toFixed(1) : "—"}°C</div>
                 <div class="m-lbl">Уставка</div>
               </div>
             </div>
             <div class="metric">
               <div class="m-ico">${this._ico.delta}</div>
               <div class="m-txt">
-                <div class="m-val">${a !== null ? a.toFixed(1) : "—"}°C</div>
+                <div class="m-val">${s !== null ? s.toFixed(1) : "—"}°C</div>
                 <div class="m-lbl">ΔT</div>
                 <div class="dt-bar"><div class="dt-fill ${C}" style="width:${T}%"></div></div>
               </div>
@@ -763,11 +762,11 @@ class E extends HTMLElement {
 
           <!-- DIAGNOSTICS -->
           ${t.show_diagnostics !== !1 ? `
-            <div class="diag ${d.cls}">
-              <span class="d-i">${d.icon}</span>
+            <div class="diag ${c.cls}">
+              <span class="d-i">${c.icon}</span>
               <div class="d-b">
-                <div class="d-t">${d.title}</div>
-                ${d.text ? `<div>${d.text}</div>` : ""}
+                <div class="d-t">${c.title}</div>
+                ${c.text ? `<div>${c.text}</div>` : ""}
               </div>
             </div>
           ` : ""}
@@ -781,12 +780,12 @@ class E extends HTMLElement {
 
           <!-- MODES -->
           <div class="modes">
-            ${w.map((n) => `<button class="mbtn ${n === c ? "on" : ""} ${n}" data-m="${n}">${$[n] || ""} ${m[n] || n}</button>`).join("")}
+            ${w.map((n) => `<button class="mbtn ${n === d ? "on" : ""} ${n}" data-m="${n}">${$[n] || ""} ${b[n] || n}</button>`).join("")}
           </div>
 
         </div>
       </ha-card>
-    `, this._bindAll(h);
+    `, this._bindAll(g);
   }
   /* ── Events ───────────────────────────── */
   _bindAll(t) {

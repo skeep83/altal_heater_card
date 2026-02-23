@@ -1,7 +1,7 @@
 {
   "name": "altal-heatpump-card",
-  "version": "1.0.0",
-  "description": "Neumorphic Home Assistant card for Altal heat pump",
+  "version": "4.1.0",
+  "description": "Neumorphic Home Assistant card for Altal heat pump (Aerogel compatible)",
   "type": "module",
   "scripts": {
     "build": "vite build",
