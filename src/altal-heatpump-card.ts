@@ -582,7 +582,7 @@ class AltalHeatpumpCard extends HTMLElement {
 
       /* ─── Sensor metrics ─── */
       .metrics {
-        display: grid; grid-template-columns: repeat(auto-fit, minmax(clamp(110px, 30cqw, 140px), 1fr));
+        display: grid; grid-template-columns: 1fr 1fr;
         gap: clamp(10px, 3cqw, 14px); margin-bottom: 18px;
         width: 100%;
       }
