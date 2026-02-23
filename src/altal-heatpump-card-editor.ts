@@ -17,6 +17,8 @@ interface CardConfig {
   show_controls?: boolean;
   show_image?: boolean;
   compact?: boolean;
+  text_color?: string;
+  animation_color?: string;
 }
 
 class AltalHeatpumpCardEditor extends HTMLElement {
@@ -147,6 +149,16 @@ class AltalHeatpumpCardEditor extends HTMLElement {
             <label>Пресеты (через запятую)</label>
             <input type="text" id="quick_presets" value="${(C.quick_presets || [19, 20, 22, 24]).join(', ')}" placeholder="19, 20, 22, 24">
           </div>
+          <div class="row">
+            <label>Цвет текста (HEX/CSS)</label>
+            <input type="text" id="text_color" value="${C.text_color || ''}" placeholder="var(--aerogel-text) или #ffffff">
+            <div class="hint">Оставьте пустым для цвета темы Aerogel</div>
+          </div>
+          <div class="row">
+            <label>Цвет акцента/нагрева (HEX)</label>
+            <input type="text" id="animation_color" value="${C.animation_color || ''}" placeholder="var(--aerogel-warning) или #ffaa00">
+            <div class="hint">Цвет свечения и иконки нагрева</div>
+          </div>
         </div>
 
         <div class="section">
@@ -177,7 +189,7 @@ class AltalHeatpumpCardEditor extends HTMLElement {
 
     // Text inputs
     ['name', 'climate_entity', 'current_temp_entity', 'target_temp_entity',
-      'delta_t_entity', 'heating_entity', 'image'].forEach(field => {
+      'delta_t_entity', 'heating_entity', 'image', 'text_color', 'animation_color'].forEach(field => {
         const input = this._root.getElementById(field) as HTMLInputElement;
         input?.addEventListener('change', (e) => {
           const val = (e.target as HTMLInputElement).value;

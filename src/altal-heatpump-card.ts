@@ -23,6 +23,10 @@ interface CardConfig {
   show_controls?: boolean;
   show_image?: boolean;
   compact?: boolean;
+
+  // v4.2.0 Additions
+  text_color?: string;
+  animation_color?: string;
 }
 
 interface HassEntity {
@@ -47,6 +51,8 @@ class AltalHeatpumpCard extends HTMLElement {
   private _history: { t: number; ts: number }[] = [];
   private _pendingTarget: number | null = null;
   private _svcTimer: ReturnType<typeof setTimeout> | null = null;
+  private _cachedGraph: Record<string, { time: number; svg: string; min: number; max: number }> = {};
+  private _activeGraphEntity: string | null = null;
 
   constructor() {
     super();
@@ -65,6 +71,8 @@ class AltalHeatpumpCard extends HTMLElement {
       quick_presets: [19, 20, 22, 24],
       show_diagnostics: true, show_presets: true,
       show_controls: true, show_image: true, compact: false,
+      text_color: '',
+      animation_color: ''
     };
   }
 
@@ -233,6 +241,116 @@ class AltalHeatpumpCard extends HTMLElement {
     });
   }
 
+  /* ── Interactive Graphs ────────────────────── */
+
+  private async _fetchGraph(entity_id: string, name: string) {
+    if (this._activeGraphEntity === entity_id) {
+      this._activeGraphEntity = null; // Toggle off
+      this._render();
+      return;
+    }
+
+    this._activeGraphEntity = entity_id;
+    this._render(); // Render loading state
+
+    const now = new Date();
+    const past = new Date(now.getTime() - 24 * 60 * 60 * 1000); // last 24h
+    const cache = this._cachedGraph[entity_id];
+
+    // Cache for 5 minutes
+    if (cache && now.getTime() - cache.time < 300000) {
+      this._render();
+      return;
+    }
+
+    try {
+      const startStr = past.toISOString();
+      const endStr = now.toISOString();
+      // Use minimal_response to save bandwidth
+      const res = await (this._hass as any).callApi(
+        'GET',
+        `history/period/${startStr}?filter_entity_id=${entity_id}&end_time=${endStr}&minimal_response`
+      );
+
+      if (res && res[0] && res[0].length > 0) {
+        let min = Infinity;
+        let max = -Infinity;
+        const pts: { x: number; y: number }[] = [];
+
+        const startTime = past.getTime();
+        const timeSpan = now.getTime() - startTime;
+
+        for (const s of res[0]) {
+          const val = parseFloat(s.state);
+          if (isNaN(val)) continue;
+          if (val < min) min = val;
+          if (val > max) max = val;
+
+          const ts = new Date(s.last_changed).getTime();
+          pts.push({ x: (ts - startTime) / timeSpan, y: val });
+        }
+
+        // Add current state at 100% X
+        const curStr = this._hass.states[entity_id]?.state;
+        if (curStr) {
+          const val = parseFloat(curStr);
+          if (!isNaN(val)) {
+            pts.push({ x: 1, y: val });
+            if (val < min) min = val;
+            if (val > max) max = val;
+          }
+        }
+
+        if (pts.length > 1) {
+          // Add 10% padding to Y axis
+          const spread = max - min;
+          const yPad = spread === 0 ? 1 : spread * 0.1;
+          const yMin = min - yPad;
+          const yMax = max + yPad;
+          const ySpan = yMax - yMin;
+
+          // Generate SVG path
+          const w = 300;
+          const h = 60;
+          let path = `M ${pts[0].x * w},${h - ((pts[0].y - yMin) / ySpan) * h}`;
+          let fillPath = `${path}`;
+
+          for (let i = 1; i < pts.length; i++) {
+            const x = pts[i].x * w;
+            const y = h - ((pts[i].y - yMin) / ySpan) * h;
+            // Simple line for efficiency over 24h of data
+            path += ` L ${x},${y}`;
+          }
+
+          fillPath = `${path} L ${w},${h} L 0,${h} Z`;
+
+          const svg = `
+            <svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" style="width:100%; height:60px; margin-top:10px; overflow:visible;">
+              <defs>
+                <linearGradient id="gf_${entity_id}" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="var(--heat)" stop-opacity="0.3"/>
+                  <stop offset="100%" stop-color="var(--heat)" stop-opacity="0.0"/>
+                </linearGradient>
+              </defs>
+              <path d="${fillPath}" fill="url(#gf_${entity_id})" />
+              <path d="${path}" fill="none" stroke="var(--heat)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          `;
+
+          this._cachedGraph[entity_id] = { time: now.getTime(), svg, min, max };
+          if (this._activeGraphEntity === entity_id) this._render();
+        } else {
+          this._activeGraphEntity = null; // Not enough data
+          this._render();
+        }
+      }
+    } catch (e) {
+      console.warn("Altal Card - History fetch failed", e);
+      this._activeGraphEntity = null;
+      this._render();
+    }
+  }
+
   /* ── Neumorphic SVG Icons (thin stroke style) ── */
   private _ico = {
     thermo: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 14.76V3.5a2.5 2.5 0 10-5 0v11.26a4.5 4.5 0 105 0z"/><circle cx="11.5" cy="18" r="1.5" fill="currentColor" stroke="none"/><line x1="11.5" y1="14" x2="11.5" y2="18"/></svg>`,
@@ -252,13 +370,16 @@ class AltalHeatpumpCard extends HTMLElement {
   /* ══════════════════ CSS ══════════════════ */
 
   private _css(): string {
+    const customText = this._config?.text_color || 'var(--aerogel-text, var(--primary-text-color, #3b3f5c))';
+    const customHeat = this._config?.animation_color || 'var(--aerogel-warning, #f07b3f)';
+
     return `
       @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;500;600;700;800&display=swap');
 
       :host {
         --bg: var(--aerogel-base, var(--card-background-color, #e3e6ec));
         --bg2: var(--aerogel-base-alt, var(--secondary-background-color, #d1d5db));
-        --txt: var(--aerogel-text, var(--primary-text-color, #3b3f5c));
+        --txt: ${customText};
         --txt2: var(--aerogel-text-secondary, var(--secondary-text-color, #8b8fa3));
         --accent: var(--aerogel-accent, var(--primary-color, #6CB4EE));
 
@@ -269,7 +390,7 @@ class AltalHeatpumpCard extends HTMLElement {
         --btn: var(--aerogel-flat, 4px 4px 10px rgba(166,180,200,0.7), -4px -4px 10px rgba(255,255,255,0.8));
         --btn-p: var(--aerogel-active, inset 3px 3px 7px rgba(166,180,200,0.7), inset -3px -3px 7px rgba(255,255,255,0.8));
 
-        --heat: var(--aerogel-warning, #f07b3f);
+        --heat: ${customHeat};
         --heat-g: rgba(240, 123, 63, 0.15);
         --idle: var(--aerogel-text-secondary, #93a5be);
         --good: var(--success-color, #05a677);
@@ -291,18 +412,19 @@ class AltalHeatpumpCard extends HTMLElement {
         overflow: hidden;
         font-family: 'Rubik', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
         color: var(--txt);
-        padding: 24px;
+        padding: clamp(16px, 5cqw, 24px);
+        container-type: inline-size;
       }
 
       /* ─── Top ─── */
       .top {
         display: flex; align-items: center; justify-content: space-between;
-        margin-bottom: 24px;
+        margin-bottom: clamp(16px, 5cqw, 24px);
       }
-      .top-left { display: flex; align-items: center; gap: 16px; }
+      .top-left { display: flex; align-items: center; gap: clamp(12px, 3cqw, 16px); }
 
       .pump-thumb {
-        width: 80px; height: 80px;
+        width: clamp(60px, 15cqw, 80px); aspect-ratio: 1;
         border-radius: 20px;
         background: var(--bg);
         box-shadow: var(--raised-s);
@@ -316,30 +438,30 @@ class AltalHeatpumpCard extends HTMLElement {
         object-fit: cover;
       }
       .pump-thumb.empty {
-        font-size: 12px; font-weight: 700;
+        font-size: clamp(10px, 2.5cqw, 12px); font-weight: 700;
         color: var(--txt2); letter-spacing: 2px;
       }
 
       .top-info {}
       .top-info .name {
-        font-size: 20px; font-weight: 600;
+        font-size: clamp(16px, 4cqw, 20px); font-weight: 600;
         color: var(--txt); line-height: 1.3;
       }
       .top-info .status {
-        font-size: 13px; font-weight: 400;
+        font-size: clamp(11px, 2.8cqw, 13px); font-weight: 400;
         color: var(--txt2); margin-top: 4px;
       }
 
       .top-right {
         display: flex; flex-direction: column;
-        align-items: flex-end; gap: 10px;
+        align-items: flex-end; gap: clamp(6px, 2cqw, 10px);
       }
 
       /* Badge */
       .badge {
         display: inline-flex; align-items: center; gap: 6px;
         padding: 5px 14px; border-radius: 20px;
-        font-size: 11px; font-weight: 600;
+        font-size: clamp(9px, 2cqw, 11px); font-weight: 600;
         letter-spacing: 0.5px;
       }
       .badge .dot { width: 7px; height: 7px; border-radius: 50%; }
@@ -353,7 +475,7 @@ class AltalHeatpumpCard extends HTMLElement {
 
       /* Power */
       .pwr {
-        width: 44px; height: 44px; border-radius: 14px; border: none;
+        width: clamp(36px, 9cqw, 44px); aspect-ratio: 1; border-radius: 14px; border: none;
         background: var(--bg); box-shadow: var(--btn);
         cursor: pointer; display: flex; align-items: center; justify-content: center;
         color: var(--idle); transition: all 0.25s;
@@ -361,17 +483,17 @@ class AltalHeatpumpCard extends HTMLElement {
       .pwr:hover { box-shadow: 5px 5px 12px var(--sh-d), -5px -5px 12px var(--sh-l); }
       .pwr:active { box-shadow: var(--btn-p); }
       .pwr.on { color: var(--heat); }
-      .pwr svg { width: 22px; height: 22px; }
+      .pwr svg { width: clamp(18px, 4.5cqw, 22px); height: clamp(18px, 4.5cqw, 22px); }
 
       /* ─── Main dial area ─── */
       .dial-area {
         display: flex; align-items: center; justify-content: center;
-        gap: 4vmin; margin-bottom: 12px;
+        gap: clamp(12px, 4cqw, 20px); margin-bottom: 12px;
       }
 
       /* Side +/- */
       .side-btn {
-        width: clamp(44px, 12vw, 56px); aspect-ratio: 1; border-radius: 16px; border: none;
+        width: clamp(40px, 10cqw, 56px); aspect-ratio: 1; border-radius: 16px; border: none;
         background: var(--bg); box-shadow: var(--btn);
         cursor: pointer; display: flex; align-items: center; justify-content: center;
         color: var(--txt); flex-shrink: 0;
@@ -379,11 +501,11 @@ class AltalHeatpumpCard extends HTMLElement {
       }
       .side-btn:hover { transform: scale(1.06); box-shadow: var(--raised); }
       .side-btn:active { box-shadow: var(--btn-p); transform: scale(0.94); }
-      .side-btn svg { width: clamp(20px, 6vw, 24px); }
+      .side-btn svg { width: clamp(20px, 5cqw, 24px); }
 
       /* Circle */
       .circle {
-        width: clamp(140px, 45vw, 200px); aspect-ratio: 1;
+        width: clamp(140px, 40cqw, 260px); aspect-ratio: 1;
         border-radius: 50%; flex-shrink: 0;
         background: var(--bg); box-shadow: var(--raised);
         display: flex; align-items: center; justify-content: center;
@@ -422,53 +544,53 @@ class AltalHeatpumpCard extends HTMLElement {
 
       /* Temp display */
       .c-lbl {
-        font-size: clamp(9px, 2.5vw, 11px); font-weight: 500; text-transform: uppercase;
+        font-size: clamp(9px, 2.5cqw, 11px); font-weight: 500; text-transform: uppercase;
         letter-spacing: 1.5px; color: var(--txt2);
         position: relative; z-index: 3;
       }
       .c-val {
-        font-size: clamp(32px, 10vw, 46px); font-weight: 300; line-height: 1;
+        font-size: clamp(32px, 10cqw, 56px); font-weight: 300; line-height: 1;
         color: var(--txt); margin-top: 2px;
         position: relative; z-index: 3; transition: color 0.3s;
       }
-      .c-val sup { font-size: clamp(16px, 4.5vw, 20px); font-weight: 400; }
+      .c-val sup { font-size: clamp(16px, 4cqw, 24px); font-weight: 400; }
       .c-val.hot { color: var(--heat); }
 
       .c-trend {
         display: flex; align-items: center; gap: 4px;
-        margin-top: 6px; font-size: clamp(9px, 2.5vw, 11px); font-weight: 500;
+        margin-top: 6px; font-size: clamp(9px, 2.5cqw, 11px); font-weight: 500;
         color: var(--txt2); position: relative; z-index: 3;
       }
-      .c-trend svg { width: clamp(12px, 3.5vw, 14px); aspect-ratio: 1; }
+      .c-trend svg { width: clamp(12px, 3.5cqw, 14px); aspect-ratio: 1; }
       .c-trend.up { color: var(--heat); }
       .c-trend.down { color: var(--info); }
       .c-trend.flat { color: var(--good); }
 
       /* ─── Setpoint below dial ─── */
       .setpoint {
-        text-align: center; margin-bottom: 22px;
+        text-align: center; margin-bottom: clamp(16px, 5cqw, 22px);
       }
       .sp-lbl {
-        font-size: clamp(9px, 2.5vw, 11px); font-weight: 500; text-transform: uppercase;
+        font-size: clamp(9px, 2.5cqw, 11px); font-weight: 500; text-transform: uppercase;
         letter-spacing: 1.5px; color: var(--txt2);
       }
       .sp-val {
-        font-size: clamp(24px, 7vw, 30px); font-weight: 600; color: var(--txt);
+        font-size: clamp(24px, 7cqw, 36px); font-weight: 600; color: var(--txt);
         line-height: 1.3; transition: color 0.3s;
       }
       .sp-val.hot { color: var(--heat); }
 
       /* ─── Sensor metrics ─── */
       .metrics {
-        display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-        gap: 14px; margin-bottom: 18px;
+        display: grid; grid-template-columns: repeat(auto-fit, minmax(clamp(110px, 30cqw, 140px), 1fr));
+        gap: clamp(10px, 3cqw, 14px); margin-bottom: 18px;
         width: 100%;
       }
       .metric {
         background: var(--bg);
         box-shadow: var(--raised-s);
-        border-radius: 18px; padding: clamp(12px, 3vw, 16px);
-        display: flex; align-items: center; gap: clamp(8px, 2.5vw, 12px);
+        border-radius: 18px; padding: clamp(12px, 3cqw, 16px);
+        display: flex; align-items: center; gap: clamp(8px, 2.5cqw, 12px);
         transition: all 0.25s;
         animation: pop 0.4s cubic-bezier(0.34,1.56,0.64,1) both;
       }
@@ -509,23 +631,44 @@ class AltalHeatpumpCard extends HTMLElement {
       .dt-fill.mid { background: var(--warn); }
       .dt-fill.bad { background: #e53935; }
 
-      /* ─── Diagnostics ─── */
+      /* ─── Diagnostics & Graphs ─── */
       .diag {
         background: var(--bg); box-shadow: var(--inset);
         border-radius: 18px; padding: 16px 20px;
         margin-bottom: 18px; display: flex;
+        flex-direction: column;
         align-items: flex-start; gap: 14px;
         font-size: 13px; font-weight: 400; line-height: 1.6;
         color: var(--txt2);
         animation: pop 0.4s 0.3s both;
+        overflow: hidden;
       }
       .diag.hide { display: none; }
+      
+      .diag-row {
+        display: flex; width: 100%;
+        align-items: flex-start; gap: 14px;
+      }
       .diag .d-i { font-size: 24px; flex-shrink: 0; line-height: 1; }
       .diag .d-b { flex: 1; }
       .diag .d-t { font-size: 14px; font-weight: 600; color: var(--txt); margin-bottom: 3px; }
       .diag.good .d-t { color: var(--good); }
       .diag.warn .d-t { color: var(--warn); }
       .diag.info .d-t { color: var(--info); }
+      
+      .graph {
+        width: 100%;
+        border-top: 1px solid rgba(139, 143, 163, 0.15);
+        padding-top: 10px;
+        margin-top: 2px;
+        animation: fadeDown 0.4s ease-out;
+      }
+      .graph-hdr {
+        display: flex; justify-content: space-between;
+        font-size: 10px; text-transform: uppercase;
+        letter-spacing: 1px; color: var(--txt2); font-weight: 600;
+      }
+      @keyframes fadeDown { from{opacity:0;transform:translateY(-10px)} to{opacity:1;transform:none} }
 
       /* ─── Presets ─── */
       .presets {
@@ -617,7 +760,30 @@ class AltalHeatpumpCard extends HTMLElement {
     const trIco = tr === 'up' ? this._ico.up : tr === 'down' ? this._ico.down : this._ico.stable;
     const trTxt = tr === 'up' ? 'Растёт' : tr === 'down' ? 'Падает' : 'Стабильно';
 
-    const diag = this._dtDiag(dT, curT, tgtT, isH);
+    let diag = this._dtDiag(dT, curT, tgtT, isH);
+
+    // Override diagnostics area if a graph is active
+    let activeGraphHtml = '';
+    if (this._activeGraphEntity) {
+      const g = this._cachedGraph[this._activeGraphEntity];
+      if (g) {
+        let title = 'График';
+        if (this._activeGraphEntity === C.current_temp_entity) title = 'Текущая температура';
+        if (this._activeGraphEntity === C.target_temp_entity) title = 'Уставка нагрева';
+        if (this._activeGraphEntity === C.delta_t_entity) title = 'Дельта T (ΔT)';
+
+        diag = { icon: '📊', title, text: 'Данные за последние 24 часа', cls: 'neutral' };
+
+        activeGraphHtml = `
+          <div class="graph">
+            <div class="graph-hdr"><span>${g.min.toFixed(1)}</span><span>${g.max.toFixed(1)}</span></div>
+            ${g.svg}
+          </div>
+        `;
+      } else {
+        diag = { icon: '⌛', title: 'Загрузка', text: 'Получение графиков из истории...', cls: 'neutral' };
+      }
+    }
 
     let bCls = 'off', bTxt = 'Выкл';
     if (isH) { bCls = 'heating'; bTxt = 'Нагрев'; }
@@ -697,14 +863,14 @@ class AltalHeatpumpCard extends HTMLElement {
 
           <!-- METRICS -->
           <div class="metrics">
-            <div class="metric">
+            <div class="metric" id="m_cur" style="cursor: pointer" aria-label="График текущей температуры">
               <div class="m-ico ${isH ? 'hot' : ''}">${this._ico.thermo}</div>
               <div class="m-txt">
                 <div class="m-val">${curT !== null ? curT.toFixed(1) : '—'}°C</div>
                 <div class="m-lbl">Текущая</div>
               </div>
             </div>
-            <div class="metric">
+            <div class="metric" id="m_tgt" style="cursor: pointer" aria-label="График уставки">
               <div class="m-ico">${this._ico.target}</div>
               <div class="m-txt">
                 <div class="m-val">${tgtT !== null ? tgtT.toFixed(1) : '—'}°C</div>
@@ -712,7 +878,7 @@ class AltalHeatpumpCard extends HTMLElement {
               </div>
             </div>
             ${C.delta_t_entity ? `
-            <div class="metric">
+            <div class="metric" id="m_dt" style="cursor: pointer" aria-label="График дельта T">
               <div class="m-ico">${this._ico.delta}</div>
               <div class="m-txt">
                 <div class="m-val">${dT !== null ? dT.toFixed(1) : '—'}°C</div>
@@ -721,7 +887,7 @@ class AltalHeatpumpCard extends HTMLElement {
               </div>
             </div>
             ` : ''}
-            <div class="metric">
+            <div class="metric" id="m_heat" style="cursor: pointer" aria-label="График статуса нагрева">
               <div class="m-ico ${isH ? 'hot' : ''}">${this._ico.flame}</div>
               <div class="m-txt">
                 <div class="m-val ${isH ? 'hot' : ''}">${isH ? 'Активен' : 'Нет'}</div>
@@ -730,14 +896,17 @@ class AltalHeatpumpCard extends HTMLElement {
             </div>
           </div>
 
-          <!-- DIAGNOSTICS -->
-          ${C.show_diagnostics !== false ? `
-            <div class="diag ${diag.cls}">
-              <span class="d-i">${diag.icon}</span>
-              <div class="d-b">
-                <div class="d-t">${diag.title}</div>
-                ${diag.text ? `<div>${diag.text}</div>` : ''}
+          <!-- DIAGNOSTICS & GRAPHS -->
+          ${C.show_diagnostics !== false || this._activeGraphEntity ? `
+            <div class="diag ${(!C.show_diagnostics && !this._activeGraphEntity) || (!this._activeGraphEntity && diag.cls === 'hide') ? 'hide' : diag.cls}">
+              <div class="diag-row">
+                <span class="d-i">${diag.icon}</span>
+                <div class="d-b">
+                  <div class="d-t">${diag.title}</div>
+                  ${diag.text ? `<div>${diag.text}</div>` : ''}
+                </div>
               </div>
+              ${activeGraphHtml}
             </div>
           ` : ''}
 
@@ -768,6 +937,24 @@ class AltalHeatpumpCard extends HTMLElement {
     $('dn')?.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); this._adjust(-1); });
     $('up')?.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); this._adjust(1); });
     $('pwr')?.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); this._mode(isOff ? 'heat' : 'off'); });
+
+    // Metric Click Listeners (Graphs)
+    $('m_cur')?.addEventListener('click', () => {
+      const C = this._config;
+      if (C.current_temp_entity) this._fetchGraph(C.current_temp_entity, 'Текущая');
+    });
+    $('m_tgt')?.addEventListener('click', () => {
+      const C = this._config;
+      if (C.target_temp_entity) this._fetchGraph(C.target_temp_entity, 'Уставка');
+    });
+    $('m_dt')?.addEventListener('click', () => {
+      const C = this._config;
+      if (C.delta_t_entity) this._fetchGraph(C.delta_t_entity, 'ΔT');
+    });
+    $('m_heat')?.addEventListener('click', () => {
+      const C = this._config;
+      if (C.heating_entity) this._fetchGraph(C.heating_entity, 'Нагрев');
+    });
 
     this._root.querySelectorAll('.chip').forEach(el =>
       el.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); this._preset(parseFloat((e.currentTarget as HTMLElement).dataset.t || '20')); })
