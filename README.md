@@ -1,5 +1,7 @@
 # Altal Heatpump Card
 
+![Preview](preview.png)
+
 A premium neumorphic Home Assistant Lovelace card for the **Altal** heat pump.
 
 ## Features
